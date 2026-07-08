@@ -1,0 +1,6 @@
+openai
+notion-client
+yfinance
+feedparser
+requests
+beautifulsoup4
