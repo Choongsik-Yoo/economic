@@ -26,7 +26,6 @@ notion = Client(auth=NOTION_TOKEN)
 # 2. 데이터 수집 함수
 # ---------------------------------------------------------
 def fetch_market_data():
-    """주요 시장 지표(환율, 증시, 유가) 수집"""
     tickers = {
         "USD/KRW": "KRW=X",
         "KOSPI": "^KS11",
@@ -45,13 +44,11 @@ def fetch_market_data():
     return market_info
 
 def fetch_news_rss():
-    """구글 뉴스 RSS를 통해 주요 뉴스 수집"""
     urls = [
         "https://news.google.com/rss/search?q=경제+OR+정책+OR+금리&hl=ko&gl=KR&ceid=KR:ko",
         "https://news.google.com/rss/search?q=AI+PC+OR+온디바이스+OR+NPU+OR+위더스컴퓨터&hl=ko&gl=KR&ceid=KR:ko",
         "https://news.google.com/rss/search?q=중소기업+OR+소상공인+OR+조달청+지원사업&hl=ko&gl=KR&ceid=KR:ko"
     ]
-    
     news_items = []
     for url in urls:
         feed = feedparser.parse(url)
@@ -63,7 +60,6 @@ def fetch_news_rss():
 # 3. AI 분석 및 요약 생성
 # ---------------------------------------------------------
 def generate_briefing(market_data, news_text):
-    """OpenAI API를 활용하여 경영진 맞춤형 브리핑 생성"""
     today_str = datetime.now().strftime("%Y년 %m월 %d일")
     
     system_prompt = f"""
@@ -91,7 +87,7 @@ def generate_briefing(market_data, news_text):
        - "importance": 높음, 중간, 낮음 중 택 1
        - "related_tasks": ["경영", "영업", "구매", "재무", "조달", "교육", "콘텐츠", "대리점"] 중 선택 (배열)
        - "withus_impact": 위더스컴퓨터 매출/구매/영업 관점의 시사점 (텍스트)
-       - "action": 실행할 액션 키워드 (예: "단가 확인", "영업팀 공유" 등 짧은 단어 1개)
+       - "action": 뉴스를 바탕으로 오늘 확인하거나 실행할 일 (상세 텍스트)
        - "share_target": 임원, 팀장, 영업팀, 구매팀, 대리점, 블로그 중 택 1
        - "status": "확인 전" (고정)
     """
@@ -106,11 +102,10 @@ def generate_briefing(market_data, news_text):
         ],
         response_format={ "type": "json_object" }
     )
-    
     return json.loads(response.choices[0].message.content)
 
 # ---------------------------------------------------------
-# 4. 이메일 발송 함수
+# 4. 이메일 발송 & 5. 노션 DB 저장 
 # ---------------------------------------------------------
 def send_email(html_content):
     today_str = datetime.now().strftime("%Y-%m-%d")
@@ -121,15 +116,11 @@ def send_email(html_content):
 
     part = MIMEText(html_content, "html")
     msg.attach(part)
-
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(GMAIL_ID, GMAIL_APP_PASSWORD)
         server.sendmail(GMAIL_ID, TARGET_EMAIL, msg.as_string())
     print("이메일 발송 완료!")
 
-# ---------------------------------------------------------
-# 5. 노션 DB 저장 함수
-# ---------------------------------------------------------
 def save_to_notion(notion_items):
     for item in notion_items:
         try:
@@ -144,17 +135,18 @@ def save_to_notion(notion_items):
                     "기사링크": {"url": item.get("url", "") if str(item.get("url")).startswith("http") else None},
                     "중요도": {"select": {"name": item.get("importance", "중간")}},
                     "관련업무": {"multi_select": [{"name": task} for task in item.get("related_tasks", [])]},
-                    
-                    # 캡처본 기준 추가된 항목들 반영
                     "위더스컴퓨터영향": {"rich_text": [{"text": {"content": item.get("withus_impact", "")}}]},
-                    "액션": {"select": {"name": item.get("action", "확인 필요")[:50]}},
+                    
+                    # 액션 항목을 '텍스트(Rich Text)' 형식에 맞게 수정했습니다.
+                    "액션": {"rich_text": [{"text": {"content": item.get("action", "")}}]},
+                    
                     "공유대상": {"select": {"name": item.get("share_target", "임원")[:50]}},
-                    "처리상태": {"select": {"name": item.get("status", "확인 전")}}
+                    "처리상태": {"select": {"name": item.get("status", "확인 전")[:50]}}
                 }
             )
         except Exception as e:
             print(f"노션 저장 중 오류 발생 ({item.get('title')}): {e}")
-    print(f"노션 DB에 {len(notion_items)}개의 데이터 저장 완료!")
+    print(f"노션 DB에 {len(notion_items)}개의 데이터 저장 시도 완료!")
 
 # ---------------------------------------------------------
 # 6. 메인 실행 블록
