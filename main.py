@@ -63,7 +63,7 @@ def generate_briefing(market_data, news_text):
     today_str = datetime.now().strftime("%Y년 %m월 %d일")
     
     system_prompt = f"""
-    당신은 위더스컴퓨터(주)의 전무이사를 보좌하는 최고 전략 AI 비서입니다.
+    당신은 WITHCOM AI의 경영진을 보좌하는 최고 전략 AI 비서입니다.
     오늘 날짜는 {today_str}입니다.
     제공된 시장 지표와 뉴스 헤드라인을 분석하여, 다음 두 가지를 JSON 형식으로 반환하세요.
     
@@ -110,7 +110,7 @@ def generate_briefing(market_data, news_text):
 def send_email(html_content):
     today_str = datetime.now().strftime("%Y-%m-%d")
     msg = MIMEMultipart("alternative")
-    msg['Subject'] = f"[경영진 브리핑] {today_str} 위더스컴퓨터 아침 경제/산업 동향"
+    msg['Subject'] = f"[경영진 브리핑] {today_str} WITHCOM AI 아침 경제/산업 동향"
     msg['From'] = GMAIL_ID
     msg['To'] = TARGET_EMAIL
 
